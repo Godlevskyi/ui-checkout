@@ -1,5 +1,6 @@
 import { isEmpty } from 'lodash';
 import React from 'react';
+import IdleTimer from 'react-idle-timer';
 import PropTypes from 'prop-types';
 import { SubmissionError, reset } from 'redux-form';
 import Paneset from '@folio/stripes-components/lib/Paneset';
@@ -80,10 +81,13 @@ class Scan extends React.Component {
     this.context = context;
     this.store = props.stripes.store;
     this.connectedScanItems = props.stripes.connect(ScanItems);
-
     this.findPatron = this.findPatron.bind(this);
     this.selectPatron = this.selectPatron.bind(this);
     this.clearResources = this.clearResources.bind(this);
+    this.idleTimer = this.idleTimer.bind(this);
+    this.onActive = this.onActive.bind(this);
+    this.onIdle = this.onIdle.bind(this);
+
     this.state = { loading: false };
   }
 
@@ -107,7 +111,26 @@ class Scan extends React.Component {
   selectPatron(patron) {
     this.props.mutator.selPatron.replace(patron);
   }
-
+  idleTimer(settings) {
+    const setTimeout = (+settings.checkoutTimeoutDuration * 60 * 1000);
+    if (!settings.checkoutTimeout) return (<div />);
+    const parent = this._reactInternalInstance._currentElement._owner._instance;
+    console.log('parent:', parent);
+    return (<IdleTimer
+      activeAction={this.onActive}
+      idleAction={this.onIdle}
+      timeout={setTimeout}
+      startOnLoad
+    />
+    );
+  }
+  onActive = () => {
+    console.log('Active');
+  }
+  onIdle = () => {
+    console.log('Idle');
+    this.onSessionEnd();
+  }
   findPatron(data) {
     const patron = data.patron;
 
@@ -150,9 +173,8 @@ class Scan extends React.Component {
     const scannedItems = resources.scannedItems || [];
     const selPatron = resources.selPatron;
     const scannedTotal = scannedItems.length;
-
+    const inactivityTimer = this.idleTimer(checkoutSettings);
     const { translate } = this.context;
-
     if (!checkoutSettings) return <div />;
 
     let patron = patrons[0];
@@ -165,6 +187,7 @@ class Scan extends React.Component {
 
     return (
       <div className={css.container}>
+        {inactivityTimer}
         <Paneset static>
           <Pane defaultWidth="35%" paneTitle={translate('scanPatronCard')}>
             <PatronForm
